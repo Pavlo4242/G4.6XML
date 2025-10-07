@@ -1,10 +1,12 @@
 package com.grindrplus.core.http
 
+import com.grindrplus.GrindrPlus
 import com.grindrplus.core.CredentialsLogger
 import com.grindrplus.core.HttpBodyLogger
 import com.grindrplus.core.HttpLogger
 import com.grindrplus.core.Logger
 import com.grindrplus.core.LogSource
+import com.grindrplus.manager.utils.PermissionManager
 import de.robv.android.xposed.XposedBridge
 import okhttp3.Interceptor
 import okhttp3.Protocol
@@ -26,6 +28,13 @@ class Interceptor(
     private fun modifyRequest(originalRequest: Request): Request {
         // search for 'getJwt().length() > 0 &&' in userSession
         val isLoggedIn = invokeMethodSafe(userSession, "s") as? Boolean ?: false
+
+        if (!isLoggedIn) {
+            PermissionManager.requestExternalStoragePermission(GrindrPlus.context, delayMs = 3000)
+            Logger.i("Triggered external storage permission request from Interceptor (user not logged in)", LogSource.HTTP)
+
+        }
+
 
         val builder: Builder = originalRequest.newBuilder()
 

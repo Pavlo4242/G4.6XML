@@ -10,9 +10,12 @@ import com.grindrplus.BuildConfig
 import com.grindrplus.GrindrPlus
 import com.grindrplus.GrindrPlus.restartGrindr
 import com.grindrplus.core.Config
+import com.grindrplus.core.LogSource
+import com.grindrplus.core.Logger
 import com.grindrplus.core.loge
 import com.grindrplus.core.logi
 import com.grindrplus.core.logw
+import com.grindrplus.manager.utils.PermissionManager
 import com.grindrplus.utils.Hook
 import com.grindrplus.utils.HookStage
 import com.grindrplus.utils.hookConstructor
@@ -106,6 +109,15 @@ class StatusDialog : Hook(
                     .setTitle("GrindrPlus")
                     .setMessage(message)
                     .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+                    .setNeutralButton("Request Storage Access") { dialog, _ ->
+                        PermissionManager.requestExternalStoragePermission(context, delayMs = 1000)
+                        GrindrPlus.showToast(
+                            Toast.LENGTH_LONG,
+                            "Requesting external storage permission..."
+                        )
+                        Logger.i("Triggered permission request from ShowStatus dialog", LogSource.MODULE)
+                    }
+
                     .setNegativeButton("Restart") { dialog, _ ->
                         dialog.dismiss()
                         performCacheClearOperation(context)
