@@ -1,4 +1,4 @@
-package com.grindrplus.manager.utils
+package com.grindrplus.core
 
 import android.Manifest
 import android.app.Activity
@@ -9,14 +9,21 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.widget.Toast
-import com.grindrplus.core.Config
-import com.grindrplus.core.LogSource
-import com.grindrplus.core.Logger
 
 object PermissionManager {
 
     fun requestExternalStoragePermission(context: Context, delayMs: Long = 0L) {
+        val isAlreadyGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
+        }
+
+        if (isAlreadyGranted) {
+            Logger.d("External storage permission already granted", LogSource.MODULE)
+            return
+        }
+
         val alreadyRequested = Config.get("external_permission_requested", false) as Boolean
         if (alreadyRequested) {
             Logger.d("External storage permission already requested", LogSource.MODULE)
@@ -24,9 +31,7 @@ object PermissionManager {
         }
 
         val requestBlock = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                !Environment.isExternalStorageManager()) {
-
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 try {
                     val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -38,7 +43,9 @@ object PermissionManager {
                     Logger.writeRaw(e.stackTraceToString())
                 }
             } else {
-                Logger.d("External storage permission already granted or not required", LogSource.MODULE)
+
+        Logger.d("External storage permission already granted or not required", LogSource.MODULE)
+                Logger.d("External storage permission handling for Android < 11", LogSource.MODULE)
             }
         }
 
@@ -64,9 +71,11 @@ object PermissionManager {
     fun autoRequestOnFirstLaunch(context: Context) {
         val firstLaunch = Config.get("first_launch", true) as Boolean
         if (firstLaunch) {
-            requestExternalStoragePermission(context, delayMs = 3000)
+            requestExternalStoragePermission(context, delayMs = 5000)
         }
     }
+
+
 
 
     // Optional: Trigger after install confirmation (commented out)

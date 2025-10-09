@@ -15,7 +15,7 @@ import com.grindrplus.core.Logger
 import com.grindrplus.core.loge
 import com.grindrplus.core.logi
 import com.grindrplus.core.logw
-import com.grindrplus.manager.utils.PermissionManager
+import com.grindrplus.core.PermissionManager
 import com.grindrplus.utils.Hook
 import com.grindrplus.utils.HookStage
 import com.grindrplus.utils.hookConstructor

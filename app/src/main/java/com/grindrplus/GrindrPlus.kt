@@ -48,6 +48,7 @@ import java.io.IOException
 import java.lang.ref.WeakReference
 import kotlin.system.measureTimeMillis
 import androidx.core.net.toUri
+import com.grindrplus.core.HttpBodyLogger
 import timber.log.Timber
 
 @SuppressLint("StaticFieldLeak")
@@ -139,7 +140,7 @@ object GrindrPlus {
 
         this.context = application
         this.bridgeClient = BridgeClient(context)
-
+        HttpBodyLogger.initialize(this)
         Logger.initialize(context, bridgeClient, true)
         Logger.i("Initializing GrindrPlus...", LogSource.MODULE)
 
@@ -348,10 +349,13 @@ object GrindrPlus {
             database.clearAllTables()
             Config.put("reset_database", false)
         }
+            executeAsync {
+                HttpBodyLogger.initializeDatabase()
+            }
 
-        hookManager.init()
-        isMainInitialized = true
-    }
+            hookManager.init()
+            isMainInitialized = true
+        }
 
     fun runOnMainThread(appContext: Context? = null, block: (Context) -> Unit) {
         val useContext = appContext ?: context

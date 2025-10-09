@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -96,6 +97,25 @@ class BridgeClient(private val context: Context) {
         }
     }
 
+    fun getDbFile(): File? {
+        if (!isBound.get()) {
+            if (connectBlocking(3000)) {
+                Logger.d("Connected to service on-demand for getDbFile", LogSource.BRIDGE)
+            } else {
+                Logger.w("Cannot get DB file, service not bound", LogSource.BRIDGE)
+                return null
+            }
+        }
+
+        return try {
+            val filePath = bridgeService?.getDbFilePath()
+            filePath?.let { File(it) }
+        } catch (e: Exception) {
+            Logger.e("Error getting DB file: ${e.message}", LogSource.BRIDGE)
+            null
+        }
+    }
+
     fun startWatchdog() {
         serviceWatchdog.removeCallbacks(watchdogRunnable)
         serviceWatchdog.postDelayed(watchdogRunnable, WATCHDOG_CHECK_INTERVAL_MS)
@@ -112,6 +132,7 @@ class BridgeClient(private val context: Context) {
     }
 
     fun getService(): IBridgeService? = bridgeService
+
 
     suspend fun connectWithRetry(maxRetries: Int = 3, retryDelay: Long = 1000): Boolean {
         var attempts = 0
@@ -617,6 +638,8 @@ class BridgeClient(private val context: Context) {
         }
     }
 }
+
+
 
 private fun <T> runBlocking(block: suspend () -> T): T {
     return java.util.concurrent.CompletableFuture<T>().let { future ->
