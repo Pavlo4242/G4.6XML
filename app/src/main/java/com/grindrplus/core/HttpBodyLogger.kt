@@ -11,6 +11,9 @@ import com.grindrplus.GrindrPlus
 import com.grindrplus.bridge.BridgeClient
 
 
+
+
+
 object HttpBodyLogger {
     @SuppressLint("StaticFieldLeak")
     private var grindrPlus: GrindrPlus? = null
@@ -48,7 +51,7 @@ object HttpBodyLogger {
 
     private suspend fun getDatabase(): SQLiteDatabase {
         val gp = grindrPlus ?: throw IllegalStateException("HttpBodyLogger not initialized with GrindrPlus")
-        val dbFile = gp.bridgeClient.getDbFile() ?: throw IOException("Failed to get DB file from BridgeService")
+        val dbFile = gp.bridgeClient.getHttpDbFile() ?: throw IOException("Failed to get DB file from BridgeService")
         return SQLiteDatabase.openOrCreateDatabase(dbFile, null)
     }
 

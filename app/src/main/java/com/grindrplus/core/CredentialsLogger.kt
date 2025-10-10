@@ -2,8 +2,10 @@ package com.grindrplus.core
 
 import android.os.Environment
 import android.util.Base64
+import com.grindrplus.GrindrPlus
 import org.json.JSONObject
 import java.io.File
+
 
 object CredentialsLogger {
     private val logFile = File(
@@ -56,8 +58,8 @@ object CredentialsLogger {
             }
 
             // Overwrite the file with the latest credentials
-            logFile.writeText(logMessage)
-
+            //logFile.writeText(logMessage)
+            GrindrPlus.bridgeClient.writeCredentialsLog(logMessage)
             // Update the cache
             lastAuthToken = cleanAuthToken
 

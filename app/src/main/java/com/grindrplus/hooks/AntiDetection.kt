@@ -20,20 +20,20 @@ class AntiDetection : Hook(
                 param.setResult(false)
             }
 
-        findClass(commonUtils)
-            .hook("isRooted", HookStage.BEFORE) { param ->
-                param.setResult(false)
-            }
+ //       findClass(commonUtils)
+   //         .hook("isRooted", HookStage.BEFORE) { param ->
+     //           param.setResult(false)
+       //     }
 
-        findClass(commonUtils)
-            .hook("isEmulator", HookStage.BEFORE) { param ->
-                param.setResult(false)
-            }
-
-        findClass(commonUtils)
-            .hook("isAppDebuggable", HookStage.BEFORE) { param ->
-                param.setResult(false)
-            }
+//        findClass(commonUtils)
+//            .hook("isEmulator", HookStage.BEFORE) { param ->
+//                param.setResult(false)
+//            }
+//
+//        findClass(commonUtils)
+//            .hook("isAppDebuggable", HookStage.BEFORE) { param ->
+//                param.setResult(false)
+//            }
 
         findClass(devicePropertiesCollector)
             .hook("existingRWPaths", HookStage.BEFORE) { param ->

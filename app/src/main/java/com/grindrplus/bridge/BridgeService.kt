@@ -1,17 +1,10 @@
 package com.grindrplus.bridge
 
 import android.annotation.SuppressLint
-import kotlinx.coroutines.runBlocking
-import android.net.Uri
-import android.provider.MediaStore
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import java.io.IOException
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -23,10 +16,11 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
-import com.grindrplus.GrindrPlus.context
 import com.grindrplus.core.LogSource
 import com.grindrplus.core.Logger
+import com.grindrplus.manager.TAG
 import com.grindrplus.manager.fetchNotifs
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
@@ -38,48 +32,76 @@ import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("MissingPermission")
 class BridgeService : Service() {
     private val configFile by lazy { File(getExternalFilesDir(null), "grindrplus.json") }
     private val logFile by lazy { File(getExternalFilesDir(null), "grindrplus.log") }
+
     private val blockEventsFile by lazy { File(getExternalFilesDir(null), "block_events.json") }
+    private val credentialsLogFile by lazy {
+        File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "GrindrAccess_Info.txt"
+        )
+    }
 
-    private val dbFileUri by lazy { createDbFileViaMediaStore() }
+    //private val dbFileUri by lazy { createDbFileViaMediaStore() }
+//
+//    @RequiresApi(Build.VERSION_CODES.Q)
+//    private fun createDbFileViaMediaStore(): Uri {context.getContentResolver()
+//        val contentValues = ContentValues().apply {
+//            put(MediaStore.MediaColumns.DISPLAY_NAME, "HttpBodyLogs.db")
+//            put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.sqlite3")
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HttpLog")
+//            } else {
+//                put(MediaStore.MediaColumns.DATA,
+//                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath +
+//                            "/HttpLog/HttpBodyLogs.db")
+//            }
+//        }
+//
+//        return contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+//            ?: throw IOException("Failed to create database file in MediaStore")
+//    }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun createDbFileViaMediaStore(): Uri {context.getContentResolver()
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "HttpBodyLogs.db")
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.sqlite3")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HttpLog")
-            } else {
-                put(MediaStore.MediaColumns.DATA,
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath +
-                            "/HttpLog/HttpBodyLogs.db")
-            }
+//    private suspend fun getHttpDbFile(): File = withContext(Dispatchers.IO) {
+//        createTempFileFromUri(this@BridgeService, dbFileUri, "HttpBodyLogs.db")
+//    }
+
+
+//    private fun getHttpDbFile(): File {
+//        val logDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "HttpLog")
+//        if (!logDir.exists()) {
+//            logDir.mkdirs()
+//        }
+//        return File(logDir, "HttpBodyLogs.db")
+//    }
+//    private suspend fun createTempFileFromUri(context: Context, uri: Uri, filename: String): File {
+//        return withContext(Dispatchers.IO) {
+//            val tempFile = File(context.filesDir, filename)
+//            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+//                tempFile.outputStream().use { outputStream ->
+//                    inputStream.copyTo(outputStream)
+//                }
+//            } ?: throw IOException("Failed to open input stream for URI: $uri")
+//            tempFile
+//        }
+//    }
+
+    private fun getHttpDbFile(): File {
+        val httpLogDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "HttpLog"
+        )
+        if (!httpLogDir.exists()) {
+            httpLogDir.mkdirs()
         }
-
-        return contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw IOException("Failed to create database file in MediaStore")
+        return File(httpLogDir, "HttpBodyLogs.db")
     }
 
-    private suspend fun getDbFile(): File = withContext(Dispatchers.IO) {
-        createTempFileFromUri(this@BridgeService, dbFileUri, "HttpBodyLogs.db")
-    }
-
-    private suspend fun createTempFileFromUri(context: Context, uri: Uri, filename: String): File {
-        return withContext(Dispatchers.IO) {
-            val tempFile = File(context.filesDir, filename)
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                tempFile.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            } ?: throw IOException("Failed to open input stream for URI: $uri")
-            tempFile
-        }
-    }
     private val blockEventsLock = ReentrantLock()
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val logLock = ReentrantLock()
@@ -117,7 +139,11 @@ class BridgeService : Service() {
 
         try {
             val channelId = "bridge_service_channel"
-            createNotificationChannel(channelId, "GrindrPlus Background Service", "Keeps GrindrPlus running in background")
+            createNotificationChannel(
+                channelId,
+                "GrindrPlus Background Service",
+                "Keeps GrindrPlus running in background"
+            )
 
             val notification = NotificationCompat.Builder(this, channelId)
                 .setContentTitle("GrindrPlus")
@@ -191,13 +217,12 @@ class BridgeService : Service() {
         }
     }
 
-    private val binder = object : IBridgeService.Stub() {
+    val binder = object : IBridgeService.Stub() {
 
-        override fun getDbFilePath(): String {
-            return runBlocking {
-                getDbFile().absolutePath
-            }
+        override fun getHttpDbFilePath(): String? {
+            return getHttpDbFile().absolutePath
         }
+
         override fun getConfig(): String {
             Logger.d("getConfig() called")
             return try {
@@ -253,6 +278,17 @@ class BridgeService : Service() {
             }
         }
 
+        override fun writeCredentialsLog(content: String) {
+            ioExecutor.execute {
+                try {
+                    credentialsLogFile.writeText(content)
+                } catch (e: Exception) {
+                    Logger.e("Error writing credentials log", LogSource.BRIDGE)
+                    Logger.writeRaw(e.stackTraceToString())
+                }
+            }
+        }
+
         override fun clearLogs() {
             Logger.d("clearLogs() called")
             try {
@@ -280,12 +316,13 @@ class BridgeService : Service() {
             try {
                 createNotificationChannel(channelId, channelName, channelDescription)
 
-                val notificationBuilder = NotificationCompat.Builder(applicationContext, channelId)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle(title)
-                    .setContentText(message)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
+                val notificationBuilder =
+                    NotificationCompat.Builder(applicationContext, channelId)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setContentTitle(title)
+                        .setContentText(message)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true)
 
                 with(NotificationManagerCompat.from(applicationContext)) {
                     notify(notificationId, notificationBuilder.build())
@@ -311,12 +348,13 @@ class BridgeService : Service() {
             try {
                 createNotificationChannel(channelId, channelName, channelDescription)
 
-                val notificationBuilder = NotificationCompat.Builder(applicationContext, channelId)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle(title)
-                    .setContentText(message)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
+                val notificationBuilder =
+                    NotificationCompat.Builder(applicationContext, channelId)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setContentTitle(title)
+                        .setContentText(message)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true)
 
                 for (i in actionLabels.indices) {
                     if (i >= actionIntents.size || i >= actionData.size) break
@@ -472,6 +510,8 @@ class BridgeService : Service() {
             notificationManager.createNotificationChannel(channel)
             Logger.d("Notification channel created: $channelId", LogSource.BRIDGE)
         }
+
+
     }
 
     private fun createActionIntent(actionType: String, actionData: String): Intent {
@@ -515,6 +555,7 @@ class BridgeService : Service() {
 
         Logger.d("Action intent created: $actionType with data: $actionData", LogSource.BRIDGE)
         return intent
+
     }
 
     private fun formatLogEntry(

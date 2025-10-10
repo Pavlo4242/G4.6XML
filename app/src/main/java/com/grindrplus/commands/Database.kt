@@ -10,6 +10,9 @@ import android.widget.Toast
 import androidx.appcompat.widget.AppCompatTextView
 import com.grindrplus.GrindrPlus
 import com.grindrplus.core.DatabaseHelper
+import com.grindrplus.core.LogSource
+import com.grindrplus.core.Logger
+import com.grindrplus.core.PermissionManager
 import com.grindrplus.ui.Utils.copyToClipboard
 import java.io.File
 
@@ -103,10 +106,15 @@ class Database(
             val backupPath = backupDatabase()
 
             if (backupPath != null) {
-                GrindrPlus.showToast(Toast.LENGTH_LONG,
-                    "Database backed up successfully!\nLocation: $backupPath")
+                GrindrPlus.showToast(
+                    Toast.LENGTH_LONG,
+                    "Database backed up successfully!\nLocation: $backupPath"
+                )
             } else {
-                GrindrPlus.showToast(Toast.LENGTH_LONG, "Failed to backup database. Check if database exists.")
+                GrindrPlus.showToast(
+                    Toast.LENGTH_LONG,
+                    "Failed to backup database. Check if database exists."
+                )
             }
         } catch (e: Exception) {
             GrindrPlus.showToast(Toast.LENGTH_LONG, "Error backing up database: ${e.message}")
@@ -175,10 +183,94 @@ class Database(
         }
     }
 
+
+    @Command("requestStorage", help = "Manually request external storage permission")
+    fun requestStorage(args: List<String>) {
+        try {
+            // Get the application context
+            val context = GrindrPlus.context ?: return
+
+            PermissionManager.requestExternalStoragePermission(context)
+
+            GrindrPlus.showToast(
+                Toast.LENGTH_LONG,
+                "Storage permission request triggered"
+            )
+
+            Logger.i("Manual storage permission request triggered via command", LogSource.MODULE)
+
+        } catch (e: Exception) {
+            GrindrPlus.showToast(
+                Toast.LENGTH_LONG,
+                "Failed to request permission: ${e.message}"
+            )
+            Logger.e("Failed to trigger storage permission request: ${e.message}", LogSource.MODULE)
+        }
+    }
+
+
+    @Command(
+        "list_databases",
+        aliases = ["ldbs"],
+        help = "List all database files in the app's files directory"
+    )
+    fun listDatabases(args: List<String>) {
+        try {
+            val context = GrindrPlus.context
+            val databases = context.databaseList()
+
+            GrindrPlus.runOnMainThreadWithCurrentActivity { activity ->
+                val dialogView = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(60, 40, 60, 40)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+
+                val dbList =
+                    if (databases.isEmpty()) "No databases found." else databases.joinToString("\n")
+
+                val textView = AppCompatTextView(activity).apply {
+                    text = dbList
+                    textSize = 14f
+                    setTextColor(Color.WHITE)
+                    setPadding(20, 20, 20, 20)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, 20, 0, 0)
+                    }
+                }
+
+                dialogView.addView(textView)
+
+                AlertDialog.Builder(activity)
+                    .setTitle("Database Files")
+                    .setView(dialogView)
+                    .setPositiveButton("Close") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton("Copy") { _, _ ->
+                        copyToClipboard("Database Files", dbList)
+                    }
+                    .create()
+                    .show()
+            }
+        } catch (e: Exception) {
+            GrindrPlus.showToast(Toast.LENGTH_LONG, "Error: ${e.message}")
+        }
+    }
+
     @Command("copy_table", aliases = ["ct"], help = "Copy table from Grindr db to GrindrPlus db")
     fun copyTable(args: List<String>) {
         if (args.isEmpty()) {
-            GrindrPlus.showToast(Toast.LENGTH_LONG, "Usage: !copy_table table_name [new_table_name]")
+            GrindrPlus.showToast(
+                Toast.LENGTH_LONG,
+                "Usage: !copy_table table_name [new_table_name]"
+            )
             return
         }
 
@@ -187,11 +279,15 @@ class Database(
 
         try {
             // Step 1: Get table schema from source database
-            val schemaQuery = "SELECT sql FROM sqlite_master WHERE type='table' AND name='$sourceTable';"
+            val schemaQuery =
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='$sourceTable';"
             val schemaResult = DatabaseHelper.query(schemaQuery)
 
             if (schemaResult.isEmpty()) {
-                GrindrPlus.showToast(Toast.LENGTH_LONG, "Table '$sourceTable' not found in source database")
+                GrindrPlus.showToast(
+                    Toast.LENGTH_LONG,
+                    "Table '$sourceTable' not found in source database"
+                )
                 return
             }
 
@@ -224,9 +320,12 @@ class Database(
 
             grindrPlusDb.close()
 
-            GrindrPlus.showToast(Toast.LENGTH_LONG,
+            GrindrPlus.showToast(
+                Toast.LENGTH_LONG,
                 "✓ Table '$sourceTable' copied to '$targetTable' (${
-                    sourceData.size} rows)")
+                    sourceData.size
+                } rows)"
+            )
 
         } catch (e: Exception) {
             GrindrPlus.showToast(Toast.LENGTH_LONG, "Error copying table: ${e.message}")
@@ -240,8 +339,10 @@ class Database(
     }
 
     // Helper extension function for easier insertion
-    private fun SQLiteDatabase.insert(table: String, conflictAlgorithm: Int?, values: Array<Any?>,
-                                      columns: String, placeholders: String): Long {
+    private fun SQLiteDatabase.insert(
+        table: String, conflictAlgorithm: Int?, values: Array<Any?>,
+        columns: String, placeholders: String
+    ): Long {
         val sql = "INSERT INTO $table ($columns) VALUES ($placeholders)"
         return if (conflictAlgorithm != null) {
             this.compileStatement(sql).apply {
@@ -260,57 +361,6 @@ class Database(
         } else {
             this.execSQL(sql, values)
             -1 // Return -1 since we can't get rowId with execSQL
-        }
-    }
-
-
-    @Command("list_databases", aliases = ["ldbs"], help = "List all database files in the app's files directory")
-    fun listDatabases(args: List<String>) {
-        try {
-            val context = GrindrPlus.context
-            val databases = context.databaseList()
-
-            GrindrPlus.runOnMainThreadWithCurrentActivity { activity ->
-                val dialogView = LinearLayout(activity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(60, 40, 60, 40)
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                }
-
-                val dbList = if (databases.isEmpty()) "No databases found." else databases.joinToString("\n")
-
-                val textView = AppCompatTextView(activity).apply {
-                    text = dbList
-                    textSize = 14f
-                    setTextColor(Color.WHITE)
-                    setPadding(20, 20, 20, 20)
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        setMargins(0, 20, 0, 0)
-                    }
-                }
-
-                dialogView.addView(textView)
-
-                AlertDialog.Builder(activity)
-                    .setTitle("Database Files")
-                    .setView(dialogView)
-                    .setPositiveButton("Close") { dialog, _ ->
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton("Copy") { _, _ ->
-                        copyToClipboard("Database Files", dbList)
-                    }
-                    .create()
-                    .show()
-            }
-        } catch (e: Exception) {
-            GrindrPlus.showToast(Toast.LENGTH_LONG, "Error: ${e.message}")
         }
     }
 }

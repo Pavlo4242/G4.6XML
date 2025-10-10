@@ -29,6 +29,8 @@ class Profile(
         }
     }
 
+
+
     @Command("block", help = "Block a user")
     fun block(args: List<String>) {
         GrindrPlus.httpClient.blockUser(

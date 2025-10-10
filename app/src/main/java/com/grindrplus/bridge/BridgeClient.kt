@@ -28,6 +28,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
+import com. grindrplus.core.CredentialsLogger
 
 class BridgeClient(private val context: Context) {
     private var bridgeService: IBridgeService? = null
@@ -97,7 +98,7 @@ class BridgeClient(private val context: Context) {
         }
     }
 
-    fun getDbFile(): File? {
+    fun getHttpDbFile(): File? {
         if (!isBound.get()) {
             if (connectBlocking(3000)) {
                 Logger.d("Connected to service on-demand for getDbFile", LogSource.BRIDGE)
@@ -108,13 +109,15 @@ class BridgeClient(private val context: Context) {
         }
 
         return try {
-            val filePath = bridgeService?.getDbFilePath()
+            val filePath = bridgeService?.getHttpDbFilePath()
             filePath?.let { File(it) }
         } catch (e: Exception) {
             Logger.e("Error getting DB file: ${e.message}", LogSource.BRIDGE)
             null
         }
     }
+
+
 
     fun startWatchdog() {
         serviceWatchdog.removeCallbacks(watchdogRunnable)
@@ -472,6 +475,21 @@ class BridgeClient(private val context: Context) {
             bridgeService?.clearBlockEvents()
         } catch (e: Exception) {
             Logger.e("Error clearing block events: ${e.message}", LogSource.BRIDGE)
+        }
+    }
+
+    fun writeCredentialsLog(content: String) {
+        if (!isBound.get()) {
+            if (!connectBlocking(1000)) { // Short timeout, non-critical
+                Logger.w("Cannot write credentials log, service not bound", LogSource.BRIDGE)
+                return
+            }
+        }
+
+        try {
+            bridgeService?.writeCredentialsLog(content)
+        } catch (e: Exception) {
+            Logger.e("Error writing credentials log: ${e.message}", LogSource.BRIDGE)
         }
     }
 

@@ -1,6 +1,7 @@
 package com.grindrplus
 
 import android.annotation.SuppressLint
+import com.grindrplus.core.Logger
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Application
@@ -16,7 +17,7 @@ import com.grindrplus.bridge.BridgeClient
 import com.grindrplus.core.Config
 import com.grindrplus.core.EventManager
 import com.grindrplus.core.InstanceManager
-import com.grindrplus.core.Logger
+
 import com.grindrplus.core.LogSource
 import com.grindrplus.core.TaskScheduler
 import com.grindrplus.utils.TaskManager
@@ -48,7 +49,9 @@ import java.io.IOException
 import java.lang.ref.WeakReference
 import kotlin.system.measureTimeMillis
 import androidx.core.net.toUri
+import com.grindrplus.core.DatabaseManager
 import com.grindrplus.core.HttpBodyLogger
+import com.grindrplus.core.PermissionManager
 import timber.log.Timber
 
 @SuppressLint("StaticFieldLeak")
@@ -140,7 +143,9 @@ object GrindrPlus {
 
         this.context = application
         this.bridgeClient = BridgeClient(context)
-        HttpBodyLogger.initialize(this)
+//        HttpBodyLogger.initialize(this)
+        PermissionManager.requestExternalStoragePermission(context, delayMs = 4000)
+        DatabaseManager.initializeDatabaseIfNeeded(context)
         Logger.initialize(context, bridgeClient, true)
         Logger.i("Initializing GrindrPlus...", LogSource.MODULE)
 
@@ -162,6 +167,7 @@ object GrindrPlus {
         }
 
         Config.initialize(application.packageName)
+        com.grindrplus.core.DatabaseManager.initializeDatabaseIfNeeded(context)
         val newModule = File(context.filesDir, "grindrplus.dex")
         File(modulePath).copyTo(newModule, true)
         newModule.setReadOnly()
@@ -173,6 +179,7 @@ object GrindrPlus {
         this.instanceManager = InstanceManager(classLoader)
         this.packageName = context.packageName
 
+        if (packageName.isNotEmpty()) {
         if (bridgeClient.shouldRegenAndroidId(packageName)) {
             Logger.i("Generating new Android device ID", LogSource.MODULE)
             val androidId = java.util.UUID.randomUUID()
@@ -197,6 +204,9 @@ object GrindrPlus {
         } else if (Config.get("forced_coordinates", "") != "") {
             Logger.i("Clearing previously set forced coordinates", LogSource.MODULE)
             Config.put("forced_coordinates", "")
+        }
+        } else {
+            Logger.e("Package name is empty, skipping Android ID and location checks.", LogSource.MODULE)
         }
 
         registerActivityLifecycleCallbacks(application)
@@ -348,9 +358,7 @@ object GrindrPlus {
             Logger.i("Resetting database...", LogSource.MODULE)
             database.clearAllTables()
             Config.put("reset_database", false)
-        }
-            executeAsync {
-                HttpBodyLogger.initializeDatabase()
+
             }
 
             hookManager.init()

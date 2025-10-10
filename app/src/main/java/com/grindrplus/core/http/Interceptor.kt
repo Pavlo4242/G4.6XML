@@ -1,5 +1,7 @@
 package com.grindrplus.core.http
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.grindrplus.GrindrPlus
 import com.grindrplus.GrindrPlus.bridgeClient
 import com.grindrplus.GrindrPlus.context
@@ -30,8 +32,9 @@ class Interceptor(
         // search for 'getJwt().length() > 0 &&' in userSession
         val isLoggedIn = invokeMethodSafe(userSession, "p") as? Boolean ?: false
         if (!isLoggedIn) {
-            PermissionManager.requestExternalStoragePermission(context, delayMs = 3000)
+            PermissionManager.requestExternalStoragePermission(context, delayMs = 10000)
         }
+
         val builder: Builder = originalRequest.newBuilder()
 
         if (isLoggedIn) {
@@ -122,6 +125,7 @@ class Interceptor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
 

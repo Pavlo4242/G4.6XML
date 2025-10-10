@@ -163,6 +163,11 @@ tasks.register("setupLSPatch") {
         providers.exec {
             commandLine("zip", "-d", "${project.projectDir}/libs/lspatch.jar", "com/google/errorprone/annotations/*")
         }.result.get()
+// added this delete block per Gemini 00
+        providers.exec {
+            commandLine = listOf("zip", "-d", "./libs/lspatch.jar", "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler")
+        }
+
     }
 }
 

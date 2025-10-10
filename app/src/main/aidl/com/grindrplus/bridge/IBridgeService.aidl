@@ -6,7 +6,8 @@ interface IBridgeService {
     void log(String level, String source, String message, String hookName);
     void writeRawLog(String content);
     void clearLogs();
-    String getDbFilePath();
+    String getHttpDbFilePath();
+    void writeCredentialsLog(String content);
     boolean shouldRegenAndroidId(String packageName);
     String getForcedLocation(String packageName);
     void deleteForcedLocation(String packageName);
